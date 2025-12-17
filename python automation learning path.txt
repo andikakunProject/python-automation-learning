@@ -1,0 +1,94 @@
+Python automation learning roadmap:
+
+Week 1
+
+Day 1	-> Topic 		: Python Best Practices
+	   Task/Objective	: Learn naming, imports, modules, exceptions. Write small scripts with try/except.
+	   
+Day 2	-> Topic 		: Working with Files
+	   Task/Objective	: Read/write files (os, pathlib, csv, json). Automate renaming files.
+	   
+Day 3	-> Topic 		: CLI Automation
+	   Task/Objective	: Learn argparse. Make a script you can run like: python tool.py --name "andika"
+	   
+Day 4	-> Topic 		: Regex
+	   Task/Objective	: Extract emails, phone numbers, URLs from text using re.
+	   
+Day 5	-> Topic 		: Scheduling automation
+	   Task/Objective	: Use schedule or cron to run a script hourly.
+	   
+Day 6	-> Topic 		: Logging
+	   Task/Objective	: Replace print debugging with logging.
+	   
+Day 7	-> Topic 		: Mini Project: File Cleanup Bot
+	   Task/Objective	: Organize folders by file type automatically.
+	   
+	   
+Week 2
+	   
+Day 8	-> Topic 		: HTTP basics, Requests
+	   Task/Objective	: Fetch HTML pages and parse text.
+	   
+Day 9	-> Topic 		: BeautifulSoup
+	   Task/Objective	: Extract titles, links, emails, product data.
+	   
+Day 10	-> Topic 		: Selenium Automation
+	   Task/Objective	: Automate clicking, typing, logging into sites.
+	   
+Day 11	-> Topic 		: Scrape tables
+	   Task/Objective	: Extract data into pandas DataFrame
+	   
+Day 12	-> Topic 		: Export scraped data
+	   Task/Objective	: Save output to CSV, JSON, SQLite.
+	   
+Day 13	-> Topic 		: Anti-blocking techniques
+	   Task/Objective	: Rotating headers, delays, user agents.
+	   
+Day 14	-> Topic 		: Mini Project: File Cleanup Bot
+	   Task/Objective	: Track price of 1–2 products and send email alert.
+
+	 
+Week 3
+
+Day 15	-> Topic		: Working with APIs	
+	   Task/Objective	: Fetch weather, currency rate, crypto price via API.
+	   
+Day 16	-> Topic		: OAuth & Auth	
+	   Task/Objective	: Use API keys securely
+	   
+Day 17	-> Topic		: Pandas & Data workflows	
+	   Task/Objective	: Clean, filter, transform data.
+	   
+Day 18	-> Topic		: Email/Text Automation	
+	   Task/Objective	: Send emails automatically with smtplib.
+	   
+Day 19	-> Topic		: Cloud deployment	
+	   Task/Objective	: Deploy your script to run daily on Replit, Render, or GitHub Actions.
+	   
+Day 20	-> Topic		: Docker basics (optional but valuable)	
+	   Task/Objective	: Containerize your script.
+	   
+Day 21	-> Topic		: Mini Project: Crypto/Stock Notifier	
+	   Task/Objective	: Sends alert when price hits threshold
+	   
+
+Week 4 : Projects
+
+Day 22	-> Task/Objective	: Create Excel Data Scraper that exports cleaned data to XLSX.
+	   
+Day 23	-> Task/Objective	: Build Social Media Automation (example: auto-download images from Instagram profile).
+	   
+Day 24	-> Task/Objective	: Build Job Post Scraper that collects jobs from LinkedIn/Indeed and filters keywords.
+	   
+Day 25	-> Task/Objective	: Build portfolio README + GitHub repo.
+
+Day 26	-> Task/Objective	: Write a high-quality sample Fiverr/Upwork profile.
+	   
+Day 27	-> Task/Objective	: Create demos (GIF/video) showcasing scripts working.
+	   
+Day 28	-> Task/Objective	: Sends alert when price hits threshold.
+
+Day 29	-> Task/Objective	: Apply to gigs (Upwork, Fiverr, LinkedIn, local businesses).
+	   
+Day 30	-> Task/Objective	: Finalization: Create your Automation Services Offer Sheet (PDF) offering: - Web scraping - Excel automation - API integration - Website automation - Data cleaning.
+
