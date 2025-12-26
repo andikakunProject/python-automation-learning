@@ -51,11 +51,15 @@ def askfilepath():
         dircont = [x for x in cur_path.iterdir()]
         dirprop = [[x.stem, 'dir' if x.is_dir() else ('file' if not x.suffix else x.suffix[1:]), x.stat(), x.name] for x in dircont]
 
+        dirsize = 0
+
         for i, content in enumerate(dirprop):
             index, name, nametype, last_modified= shortit(str(i+1),5), fllspc(shortit(content[0], 22), 22), shortit(content[1], 4, 0, 0), datetime.fromtimestamp(int(content[2].st_mtime))
             size = ' '*8 if nametype=='dir' else unitsize(content[2].st_size)
             line_content = f'{index}\t| {name}| {nametype}\t|{size}\t| {last_modified}'
             print(line_content)
+            dirsize += content[2].st_size
+        print(f'total size : {dirsize}Bytes, or {unitsize(dirsize)}')
 
         path_input = input('\ntype "..", ".", index or name of file or directory : ')
 
