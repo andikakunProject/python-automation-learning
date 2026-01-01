@@ -4,8 +4,7 @@ from datetime import datetime
 
 
 def clear():
-    os.system('cls' if os.name == 'nt' else 'clear')
-
+    print("\033c", end="")
 
 
 def fitit(text, length = 40, indt = 0, space = 0):
@@ -25,13 +24,13 @@ def shortit(text, length, red=3, dot=3):
 def fllspc(text, max_length):
     return text + " "*(max_length-len(text))
 
-def unitsize(size):
-    units = 'KMGTPEZY'
-    exp = -1
+def unitsize(size:float):
+    units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+    exp = 0
     while size//1024 > 0:
         size /= 1024
         exp += 1
-    return f'{size:.2f} B' if exp==-1 else f'{size:.2f} {units[exp]}B'
+    return f'{size:.2f} {units[exp]}'
 
 def askfilepath():
     cur_path = Path.cwd()
@@ -56,12 +55,20 @@ def askfilepath():
         for i, content in enumerate(dirprop):
             index, name, nametype, last_modified= shortit(str(i+1),5), fllspc(shortit(content[0], 22), 22), shortit(content[1], 4, 0, 0), datetime.fromtimestamp(int(content[2].st_mtime))
             size = ' '*8 if nametype=='dir' else unitsize(content[2].st_size)
-            line_content = f'{index}\t| {name}| {nametype}\t|{size}\t| {last_modified}'
+            line_content = f'{index}\t| {name}| {nametype}\t| {size}\t| {last_modified}'
             print(line_content)
             dirsize += content[2].st_size
         print(f'total size : {dirsize}Bytes, or {unitsize(dirsize)}')
 
         path_input = input('\ntype "..", ".", index or name of file or directory : ')
+
+        if path_input.startswith(":"):
+            cmd = path_input[1:].lower()
+            if cmd in ("q", "quit", "exit"):
+                return None
+    
+        if path_input.startswith(":: "):
+            path_input = path_input[3:]
 
         if path_input.isdigit():
             try:
@@ -72,7 +79,7 @@ def askfilepath():
                     continue
                 else :
                     selected_path = str(cur_path.joinpath(path_input[3]))
-            except:
+            except (IndexError, ValueError):
                 continue
         else:
             if path_input in ['..', '.']:
@@ -87,6 +94,90 @@ def askfilepath():
 
     return selected_path
 
+
+
+
+
+def askdirpath():
+    cur_path = Path.cwd()
+    width = 77
+    selected_path = ''
+    while selected_path == '':
+        clear()
+        title = 'select a directory'
+        header = ("="*width) + '\n' + f'{" "*((width-len(title))//2)}{title}{" "*((width-len(title))//2)}' + '\n' + ("="*width) + '\n'
+        print(header)
+        print(f'curent directory : {cur_path.name}')
+        print(f'path\t\t : {fitit(str(cur_path), length = 58, indt = 2, space=3)}\n')
+
+        print(f'Index\t| Name\t\t\t| Type\t| Size\t\t| Last Modified')
+        print('-'*width)
+
+        dircont = [x for x in cur_path.iterdir()]
+        dirprop = [[x.stem, 'dir' if x.is_dir() else ('file' if not x.suffix else x.suffix[1:]), x.stat(), x.name] for x in dircont]
+
+        dirsize = 0
+
+        for i, content in enumerate(dirprop):
+            index, name, nametype, last_modified= shortit(str(i+1),5), fllspc(shortit(content[0], 22), 22), shortit(content[1], 4, 0, 0), datetime.fromtimestamp(int(content[2].st_mtime))
+            size = ' '*8 if nametype=='dir' else unitsize(content[2].st_size)
+            line_content = f'{index}\t| {name}| {nametype}\t| {size}\t| {last_modified}'
+            print(line_content)
+            dirsize += content[2].st_size
+        print(f'total size : {dirsize}Bytes, or {unitsize(dirsize)}')
+
+        path_input = input('\ntype "..", ".", index or name of file or directory : ')
+        select = False 
+
+        if path_input.startswith(":"):
+            if path_input.startswith(":: "):
+                path_input = path_input[3:]
+            else:
+                token = path_input[1:].split()
+                cmd = path_input[1:].lower()
+                if cmd in ("q", "quit", "exit"):
+                    return None
+                if token[0] in ("sel", "select"):
+                    select = True
+                    path_input = token[1]
+
+        if path_input.isdigit():
+            try:
+                path_input = int(path_input) - 1
+                path_input = dirprop[path_input]
+                if path_input[1] == 'dir':
+                    if select:
+                        selected_path = cur_path.joinpath(path_input[3])
+                    else:
+                        cur_path = cur_path.joinpath(path_input[3])
+                        continue
+                else :
+                    continue
+            except (IndexError, ValueError):
+                continue
+        else:
+            if path_input in ['..', '.']:
+                if select:
+                    selected_path = cur_path.joinpath(path_input).resolve()
+                else:
+                    cur_path = cur_path.joinpath(path_input).resolve()
+            else:
+                for prop in dirprop:
+                    if path_input in [prop[0], prop[3]]:
+                        if prop[1] == 'dir':
+                            if select:
+                                selected_path = cur_path.joinpath(prop[3]).resolve()
+                            else:
+                                cur_path = cur_path.joinpath(prop[3]).resolve()
+                                continue
+                        else:
+                            continue
+
+    return selected_path
+
+
+
+
     
-file_path = askfilepath()
-print('selected_path :', file_path)
+dir_path = askdirpath()
+print('selected_path :', dir_path)
