@@ -10,6 +10,7 @@ import textwrap
 # Helper functions
 # ============================================================
 
+
 def clear():
     """
     Clear the terminal screen (Windows or Unix-like systems).
@@ -57,10 +58,12 @@ def unitsize(size: float) -> str:
 # Models / data structures
 # ============================================================
 
+
 class SelectMode(Enum):
     """
     Selection mode for the path selector.
     """
+
     FILE = "file"
     DIR = "dir"
 
@@ -70,6 +73,7 @@ class Entry:
     """
     Represents a file or directory entry in the current directory.
     """
+
     path: Path
     is_dir: bool
     stat: os.stat_result
@@ -96,7 +100,18 @@ class Entry:
 # UI rendering
 # ============================================================
 
-def render_directory(cur_path: Path, title: str) -> list[Entry]:
+def listing(arr, inline=True, ordered=False, endline=True):
+    enditem = ", " if inline else "\n"
+    marker = "" if inline else '-'
+    liststring = ''
+    for i, x in enumerate (arr):
+        separator = enditem if i < len(arr) - 1 else ''
+        liststring += f'{str(i+1) + ". " if ordered else marker}{x}{separator}'
+    if inline and endline:
+        return liststring + ('\n')
+    return liststring
+
+def render_directory(cur_path: Path, title: str, ext:tuple = ('any',), mode=SelectMode.FILE) -> list[Entry]:
     """
     Render the directory listing UI and return Entry objects
     for all files and directories in the current path.
@@ -104,17 +119,13 @@ def render_directory(cur_path: Path, title: str) -> list[Entry]:
     width = 77
     clear()
 
-    header = (
-        "=" * width
-        + "\n"
-        + f"{title.center(width)}"
-        + "\n"
-        + "=" * width
-    )
+    header = "=" * width + "\n" + f"{title.center(width)}" + "\n" + "=" * width
 
     print(header)
     print(f"current directory : {cur_path.name}")
-    print(f"path             : {wrap(str(cur_path), 58, indent=2, space=3)}\n")
+    print(f"path              : {wrap(str(cur_path), 58, indent=2, space=3)}\n")
+
+    print(f'type : {listing(ext, endline=False) if mode.value == "file" else ""} {mode.value}')
 
     print("Index | Name                    | Type | Size       | Last Modified")
     print("-" * width)
@@ -128,17 +139,20 @@ def render_directory(cur_path: Path, title: str) -> list[Entry]:
         start=1,
     ):
         entry = Entry(p, p.is_dir(), p.stat())
-        entries.append(entry)
+        if ext == ('any',) :
+            entries.append(entry)
+        elif entry.type_label in ("dir",) + ext:
+            entries.append(entry)
 
         size = " " * 10 if entry.is_dir else unitsize(entry.stat.st_size)
         total_size += entry.stat.st_size
 
         print(
             f"{shorten(str(idx),5):5} | "
-            f"{pad(shorten(entry.stem, 22),22)} | "
-            f"{pad(entry.type_label,4)} | "
+            f"{pad(shorten(entry.stem, 22),22)}  | "
+            f"{pad(shorten(entry.type_label, 4, 0),4)} | "
             f"{pad(size,10)} | "
-            f"{datetime.fromtimestamp(entry.stat.st_mtime)}"
+            f"{datetime.fromtimestamp(int(entry.stat.st_mtime))}"
         )
 
     print(f"\ntotal size : {unitsize(total_size)}")
@@ -149,7 +163,8 @@ def render_directory(cur_path: Path, title: str) -> list[Entry]:
 # Core selection logic
 # ============================================================
 
-def ask_path(mode: SelectMode) -> Path | None:
+
+def ask_path(mode: SelectMode, ext=('Any',)) -> Path | None:
     """
     Interactive path selector.
     - FILE mode: select a file
@@ -158,15 +173,12 @@ def ask_path(mode: SelectMode) -> Path | None:
     cur_path = Path.cwd()
 
     while True:
-        entries = render_directory(
-            cur_path,
-            f"select a {mode.value}"
-        )
+        entries = render_directory(cur_path, f"select a {mode.value}", ext, mode)
 
         # Prompt message depends on selection mode
         message = {
             "file": 'type "..", ".", index or name (":q" to quit): ',
-            "dir":  'type ":sel <index, or name of directory> to select (":q" to quit): '
+            "dir": 'type ":sel <index, or name of directory> to select (":q" to quit): ',
         }
 
         raw = input(f"\n{message[mode.value]}").strip()
@@ -183,11 +195,11 @@ def ask_path(mode: SelectMode) -> Path | None:
             if cmd in ("q", "quit", "exit"):
                 return None
 
-            if cmd in ("sel", "select"):
+            elif cmd in ("sel", "select"):
                 select = True
-                raw = raw[len(token[0]):].strip()
+                raw = raw[len(token[0]) :].strip()
 
-            if raw.startswith(":: "):
+            elif raw.startswith(":: "):
                 raw = raw[3:].strip()
 
         # ----------------------------------------------------
@@ -199,8 +211,9 @@ def ask_path(mode: SelectMode) -> Path | None:
                 entry = entries[idx]
                 if entry.is_dir:
                     if mode == SelectMode.DIR:
-                        return entry.path
-                    cur_path = entry.path
+                        if select:
+                            return entry.path
+                        cur_path = entry.path
                 elif mode == SelectMode.FILE:
                     return entry.path
             continue
@@ -210,7 +223,10 @@ def ask_path(mode: SelectMode) -> Path | None:
         # ----------------------------------------------------
         if raw in (".", ".."):
             cur_path = (cur_path / raw).resolve()
-            continue
+            if select:
+                return cur_path
+            else:
+                continue
 
         # ----------------------------------------------------
         # Name-based selection
@@ -232,6 +248,5 @@ def ask_path(mode: SelectMode) -> Path | None:
 # ============================================================
 
 if __name__ == "__main__":
-    path = ask_path(SelectMode.DIR)
+    path = ask_path(SelectMode.DIR, ('py', 'txt'))
     print("\nselected_path:", path)
-
