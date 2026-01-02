@@ -7,45 +7,27 @@ import textwrap
 
 
 # ============================================================
-# Helper functions
+# Helpers
 # ============================================================
 
-
 def clear():
-    """
-    Clear the terminal screen (Windows or Unix-like systems).
-    """
     os.system("cls" if os.name == "nt" else "clear")
 
 
 def wrap(text, width=40, indent=0, space=0):
-    """
-    Wrap long text into multiple lines with optional indentation.
-    Used to nicely display long paths.
-    """
     prefix = "\t" * indent + " " * space
     return ("\n" + prefix).join(textwrap.wrap(text, width))
 
 
 def shorten(text, length, dots=3):
-    """
-    Shorten a string and add dots if it exceeds a given length.
-    """
     return text if len(text) <= length else text[: length - dots] + "." * dots
 
 
 def pad(text, width):
-    """
-    Pad text with spaces on the right to align columns.
-    """
     return text + " " * max(0, width - len(text))
 
 
 def unitsize(size: float) -> str:
-    """
-    Convert a byte size into a human-readable string.
-    Example: 1024 -> 1.00 KB
-    """
     units = ["B", "KB", "MB", "GB", "TB", "PB"]
     i = 0
     while size >= 1024 and i < len(units) - 1:
@@ -55,198 +37,178 @@ def unitsize(size: float) -> str:
 
 
 # ============================================================
-# Models / data structures
+# Models
 # ============================================================
 
-
 class SelectMode(Enum):
-    """
-    Selection mode for the path selector.
-    """
-
     FILE = "file"
     DIR = "dir"
 
 
 @dataclass
 class Entry:
-    """
-    Represents a file or directory entry in the current directory.
-    """
-
     path: Path
     is_dir: bool
     stat: os.stat_result
 
     @property
     def name(self):
-        """Full name including extension."""
         return self.path.name
 
     @property
     def stem(self):
-        """Name without extension."""
         return self.path.stem
 
     @property
     def type_label(self):
-        """Return 'dir' or file extension for display."""
-        if self.is_dir:
-            return "dir"
-        return self.path.suffix[1:] or "file"
+        return "dir" if self.is_dir else (self.path.suffix[1:] or "file")
 
 
 # ============================================================
-# UI rendering
+# Rendering
 # ============================================================
 
-def listing(arr, inline=True, ordered=False, endline=True):
-    enditem = ", " if inline else "\n"
-    marker = "" if inline else '-'
-    liststring = ''
-    for i, x in enumerate (arr):
-        separator = enditem if i < len(arr) - 1 else ''
-        liststring += f'{str(i+1) + ". " if ordered else marker}{x}{separator}'
-    if inline and endline:
-        return liststring + ('\n')
-    return liststring
+def get_entries(cur_path: Path, ext: tuple[str] | None) -> list[Entry]:
+    """
+    Read directory and return filtered Entry list.
+    Directories are always included.
+    """
+    entries: list[Entry] = []
 
-def render_directory(cur_path: Path, title: str, ext:tuple = ('any',), mode=SelectMode.FILE) -> list[Entry]:
-    """
-    Render the directory listing UI and return Entry objects
-    for all files and directories in the current path.
-    """
+    for p in sorted(cur_path.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
+        try:
+            stat = p.stat()
+        except PermissionError:
+            continue
+
+        entry = Entry(p, p.is_dir(), stat)
+
+        if ext is None or entry.is_dir or entry.type_label in ext:
+            entries.append(entry)
+
+    return entries
+
+
+def render_directory(cur_path: Path, title: str, entries: list[Entry]):
     width = 77
     clear()
 
-    header = "=" * width + "\n" + f"{title.center(width)}" + "\n" + "=" * width
+    print("=" * width)
+    print(title.center(width))
+    print("=" * width)
 
-    print(header)
     print(f"current directory : {cur_path.name}")
     print(f"path              : {wrap(str(cur_path), 58, indent=2, space=3)}\n")
-
-    print(f'type : {listing(ext, endline=False) if mode.value == "file" else ""} {mode.value}')
 
     print("Index | Name                    | Type | Size       | Last Modified")
     print("-" * width)
 
-    entries: list[Entry] = []
     total_size = 0
 
-    # Sort directories first, then files, alphabetically
-    for idx, p in enumerate(
-        sorted(cur_path.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())),
-        start=1,
-    ):
-        entry = Entry(p, p.is_dir(), p.stat())
-        if ext == ('any',) :
-            entries.append(entry)
-        elif entry.type_label in ("dir",) + ext:
-            entries.append(entry)
-
+    for idx, entry in enumerate(entries, start=1):
         size = " " * 10 if entry.is_dir else unitsize(entry.stat.st_size)
-        total_size += entry.stat.st_size
+        if not entry.is_dir:
+            total_size += entry.stat.st_size
 
         print(
-            f"{shorten(str(idx),5):5} | "
+            f"{idx:5} | "
             f"{pad(shorten(entry.stem, 22),22)}  | "
-            f"{pad(shorten(entry.type_label, 4, 0),4)} | "
+            f"{pad(entry.type_label,4)} | "
             f"{pad(size,10)} | "
-            f"{datetime.fromtimestamp(int(entry.stat.st_mtime))}"
+            f"{datetime.fromtimestamp(entry.stat.st_mtime)}"
         )
 
-    print(f"\ntotal size : {unitsize(total_size)}")
-    return entries
+    print(f"\ntotal file size : {unitsize(total_size)}")
 
 
 # ============================================================
-# Core selection logic
+# Core logic
 # ============================================================
 
+def ask_path(mode: SelectMode, ext: tuple[str] | None = None) -> Path | None:
+    """
+    Interactive filesystem selector.
 
-def ask_path(mode: SelectMode, ext=('Any',)) -> Path | None:
+    Commands:
+      :q / :quit / :exit     -> quit
+      :sel <target>          -> explicitly select directory
+      :: <name>              -> escape literal names
     """
-    Interactive path selector.
-    - FILE mode: select a file
-    - DIR mode: select a directory
-    """
+
+    if mode.value == 'dir':
+        ext = None
+    
     cur_path = Path.cwd()
+    ext = None if ext is None else tuple([e.lower() for e in ext])
 
     while True:
-        entries = render_directory(cur_path, f"select a {mode.value}", ext, mode)
+        entries = get_entries(cur_path, ext)
+        render_directory(cur_path, f"select a {mode.value}", entries)
 
-        # Prompt message depends on selection mode
-        message = {
-            "file": 'type "..", ".", index or name (":q" to quit): ',
-            "dir": 'type ":sel <index, or name of directory> to select (":q" to quit): ',
-        }
+        prompt = (
+            'type "..", ".", index or name (":q" to quit): '
+            if mode is SelectMode.FILE
+            else 'type ":sel <index or name>" to select directory (":q" to quit): '
+        )
 
-        raw = input(f"\n{message[mode.value]}").strip()
+        print(f'select a {(str(ext) + " file" if ext else " any file") if mode.value is "file" else "directory"}')
 
-        # ----------------------------------------------------
-        # Command parsing
-        # ----------------------------------------------------
+        raw = input(f"\n{prompt}").strip()
         select = False
-        token = raw.split()
 
-        if raw.startswith(":"):
-            cmd = token[0][1:].lower()
+        # ---- escape literal names
+        if raw.startswith(":: "):
+            raw = raw[3:].strip()
+
+        # ---- command parsing
+        elif raw.startswith(":"):
+            parts = raw[1:].split(maxsplit=1)
+            cmd = parts[0].lower()
+            arg = parts[1] if len(parts) > 1 else ""
 
             if cmd in ("q", "quit", "exit"):
                 return None
 
-            elif cmd in ("sel", "select"):
+            if cmd in ("sel", "select"):
                 select = True
-                raw = raw[len(token[0]) :].strip()
+                raw = arg
 
-            elif raw.startswith(":: "):
-                raw = raw[3:].strip()
+        # ---- navigation
+        if raw in (".", ".."):
+            cur_path = (cur_path / raw).resolve()
+            if select:
+                return cur_path
+            continue
 
-        # ----------------------------------------------------
-        # Index-based selection
-        # ----------------------------------------------------
+        # ---- index selection
         if raw.isdigit():
             idx = int(raw) - 1
             if 0 <= idx < len(entries):
                 entry = entries[idx]
                 if entry.is_dir:
-                    if mode == SelectMode.DIR:
-                        if select:
-                            return entry.path
-                        cur_path = entry.path
-                elif mode == SelectMode.FILE:
+                    if mode is SelectMode.DIR and select:
+                        return entry.path
+                    cur_path = entry.path
+                elif mode is SelectMode.FILE:
                     return entry.path
             continue
 
-        # ----------------------------------------------------
-        # Navigation (current / parent directory)
-        # ----------------------------------------------------
-        if raw in (".", ".."):
-            cur_path = (cur_path / raw).resolve()
-            if select:
-                return cur_path
-            else:
-                continue
-
-        # ----------------------------------------------------
-        # Name-based selection
-        # ----------------------------------------------------
+        # ---- name selection
         for entry in entries:
             if raw in (entry.name, entry.stem):
                 if entry.is_dir:
-                    if mode == SelectMode.DIR:
-                        if select:
-                            return entry.path
+                    if mode is SelectMode.DIR and select:
+                        return entry.path
                     cur_path = entry.path
-                elif mode == SelectMode.FILE:
+                elif mode is SelectMode.FILE:
                     return entry.path
                 break
 
 
 # ============================================================
-# Program entry point
+# Entry point
 # ============================================================
 
 if __name__ == "__main__":
-    path = ask_path(SelectMode.DIR, ('py', 'txt'))
+    path = ask_path(SelectMode.DIR, ("py", "txt"))
     print("\nselected_path:", path)
